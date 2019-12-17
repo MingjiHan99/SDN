@@ -96,7 +96,7 @@ class ShortestPathSwitching(app_manager.RyuApp):
         self.logger.warn("Added Link:  switch%s/%s (%s) -> switch%s/%s (%s)",
                          src_port.dpid, src_port.port_no, src_port.hw_addr,
                          dst_port.dpid, dst_port.port_no, dst_port.hw_addr)
-
+        self.tm.add_link(link)
         # TODO:  Update network topology and flow rules
 
     @set_ev_cls(event.EventLinkDelete)
@@ -111,7 +111,7 @@ class ShortestPathSwitching(app_manager.RyuApp):
         self.logger.warn("Deleted Link:  switch%s/%s (%s) -> switch%s/%s (%s)",
                           src_port.dpid, src_port.port_no, src_port.hw_addr,
                           dst_port.dpid, dst_port.port_no, dst_port.hw_addr)
-
+        self.tm.delete_link(link)
         # TODO:  Update network topology and flow rules
 
     @set_ev_cls(event.EventPortModify)
