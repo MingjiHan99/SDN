@@ -59,7 +59,7 @@ class ShortestPathSwitching(app_manager.RyuApp):
         self.logger.warn("Removed Switch switch%d with ports:", switch.dp.id)
         for port in switch.ports:
             self.logger.warn("\t%d:  %s", port.port_no, port.hw_addr)
-        self.tm.remove_switch(switch)
+        self.tm.delete_switch(switch)
         # TODO:  Update network topology and flow rules
     def add_forwarding_rule(self, datapath, dl_dst, port):
         ofctl = OfCtl.factory(datapath, self.logger)
