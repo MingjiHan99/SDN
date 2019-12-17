@@ -84,7 +84,12 @@ class ShortestPathSwitching(app_manager.RyuApp):
         
         # TODO:  Update network topology and flow rules
         self.tm.add_host(host)
- 
+        for sw in self.tm.switches:
+            if sw in self.tm.switches_dev.keys():
+                for v in self.tm.switches_dev[sw]:
+                    if v.get_mac() == host.mac:
+                        self.add_forwarding_rule(sw.get_dp(), host.mac, host.port.port_no)
+
     @set_ev_cls(event.EventLinkAdd)
     def handle_link_add(self, ev):
         """
