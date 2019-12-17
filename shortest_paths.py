@@ -59,7 +59,17 @@ class ShortestPathSwitching(app_manager.RyuApp):
         self.logger.warn("Removed Switch switch%d with ports:", switch.dp.id)
         for port in switch.ports:
             self.logger.warn("\t%d:  %s", port.port_no, port.hw_addr)
+
+        # Delete forwarding rules
+        for key in self.tm.switches_dev.keys():
+            if key.get_dpid() == switch.dp.id:
+                for v in self.tm.switches_dev[key]:
+                    print("Removing {}".format(v.get_mac()))
+                    self.delete_forwarding_rule(key.get_dp(), v.get_mac())
+        # Delete device
         self.tm.delete_switch(switch)
+
+
         # TODO:  Update network topology and flow rules
     def add_forwarding_rule(self, datapath, dl_dst, port):
         ofctl = OfCtl.factory(datapath, self.logger)
@@ -70,6 +80,12 @@ class ShortestPathSwitching(app_manager.RyuApp):
             dl_vlan=VLANID_NONE,
             dl_dst=dl_dst,
             actions=actions)
+
+    def delete_forwarding_rule(self, datapath, dl_dst):
+        ofctl = OfCtl.factory(datapath, self.logger)
+        match = datapath.ofproto_parser.OFPMatch(dl_dst=dl_dst)
+        ofctl.delete_flow(cookie=0, priority=0, match=match)
+
 
     @set_ev_cls(event.EventHostAdd)
     def handle_host_add(self, ev):

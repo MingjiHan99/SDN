@@ -106,11 +106,18 @@ class TopoManager():
             self.links[link.src] = [link.dst]
         else:
             self.links[link.src].append(link.dst)
-    
+
+        if link.dst not in self.links.keys():
+            self.links[link.dst] = [link.src]
+        else:
+            self.links[link.dst].append(link.src)
+  
     def delete_link(self, link):
         if link.src in self.links.keys():
             self.links[link.src].remove(link.dst)
-        
+        if link.dst in self.links.keys():
+            self.links[link.dst].remove(link.src)
+    
     def add_switch(self, sw):
         name = "switch_{}".format(sw.dp.id)
         switch = TMSwitch(name, sw)
