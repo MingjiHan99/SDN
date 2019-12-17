@@ -130,5 +130,4 @@ class TopoManager():
                 else:
                     self.switches_dev[sw].append(host)
         # TODO:  Add host to some data structure(s)
- 
-    # . . .
+

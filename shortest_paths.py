@@ -85,8 +85,6 @@ class ShortestPathSwitching(app_manager.RyuApp):
         # TODO:  Update network topology and flow rules
         self.tm.add_host(host)
  
-    
-
     @set_ev_cls(event.EventLinkAdd)
     def handle_link_add(self, ev):
         """
