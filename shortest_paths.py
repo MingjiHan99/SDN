@@ -9,7 +9,7 @@ about the network topology and install rules to implement shortest
 path switching.
 
 """
-
+from heapq import *
 from ryu.base import app_manager
 from ryu.controller import ofp_event
 from ryu.controller.handler import CONFIG_DISPATCHER, MAIN_DISPATCHER
@@ -48,6 +48,11 @@ class ShortestPathSwitching(app_manager.RyuApp):
         
         # TODO:  Update network topology and flow rules
         self.tm.add_switch(switch)
+        # in this project no new switched would be added
+        # should be dealt with in the process of enabling ports
+        self.calc_dijkstra()
+        self.remove_all_rules()
+        self.install_all_rules()
 
     @set_ev_cls(event.EventSwitchLeave)
     def handle_switch_delete(self, ev):
@@ -71,6 +76,11 @@ class ShortestPathSwitching(app_manager.RyuApp):
 
 
         # TODO:  Update network topology and flow rules
+        # equivalent to disabling all ports of the switch
+        self.calc_dijkstra()
+        self.remove_all_rules()
+        self.install_all_rules()
+
     def add_forwarding_rule(self, datapath, dl_dst, port):
         ofctl = OfCtl.factory(datapath, self.logger)
         actions = [datapath.ofproto_parser.OFPActionOutput(port)] 
@@ -119,6 +129,13 @@ class ShortestPathSwitching(app_manager.RyuApp):
                          dst_port.dpid, dst_port.port_no, dst_port.hw_addr)
         self.tm.add_link(link)
         # TODO:  Update network topology and flow rules
+        # compute the set of {(dp,dl_dst)} that is affected by adding this link.
+        # for each (dp,dl_dst)
+        # remove the out-dated forwarding rules
+        # add new forwarding rules
+        self.calc_dijkstra()
+        self.remove_all_rules()
+        self.install_all_rules()
 
     @set_ev_cls(event.EventLinkDelete)
     def handle_link_delete(self, ev):
@@ -134,6 +151,15 @@ class ShortestPathSwitching(app_manager.RyuApp):
                           dst_port.dpid, dst_port.port_no, dst_port.hw_addr)
         self.tm.delete_link(link)
         # TODO:  Update network topology and flow rules
+        # compute the set of {(dp,dl_dst)} that is affected by deleting this link.
+        # for each (dp,dl_dst)
+        # remove the out-dated forwarding rule(s
+        # add new forwarding rules
+
+        self.calc_dijkstra()
+        self.remove_all_rules()
+        self.install_all_rules()
+        
 
     @set_ev_cls(event.EventPortModify)
     def handle_port_modify(self, ev):
@@ -147,7 +173,15 @@ class ShortestPathSwitching(app_manager.RyuApp):
                          "UP" if port.is_live() else "DOWN")
 
         # TODO:  Update network topology and flow rules
-
+        # update links attached to the port
+        # if not .is_alive(): remove attached link from graph
+        # if .is_alive() and connected_to.is_alive(): restore attached link
+        # similar to adding/deleting links
+        
+        # self.remove_all_rules()
+        # self.calc_dijkstra()
+        # self.install_all_rules()
+        
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
     def packet_in_handler(self, ev):
         """
@@ -195,5 +229,56 @@ class ShortestPathSwitching(app_manager.RyuApp):
                                 src_port=ofctl.dp.ofproto.OFPP_CONTROLLER,
                                 output_port=in_port)
                 # Here is an example way to send an ARP packet using the ofctl utilities
-                
 
+    def remove_all_rules(self):
+        for switch in self.tm.switches:
+            dp = switch.get_dp()
+            for host in self.tm.hosts:
+                self.delete_forwarding_rule(datapath=dp,dl_dst=host.get_mac())
+
+    def install_all_rules(self):
+        global mac
+        for switch1 in self.tm.switches:
+            dp1 = switch1.get_dp()
+            for switch2 in self.tm.switches:
+                dp2 = switch2.get_dp()
+                if not dp1==dp2:
+                    if switch2 in self.tm.switches_dev.keys():
+                        hosts = self.tm.switches_dev[switch2]
+                        for host in hosts:
+                            dl_dst = host.get_mac()
+                            self.add_forwarding_rule(dp1, dl_dst, mac[dp1.id][dp2.id])
+
+    def calc_dijkstra(self):
+        global dis, mac
+        dis = {}
+        mac = {}
+        for sw1 in self.tm.switches:
+            dis[sw1.get_dpid()] = {}
+            mac[sw1.get_dpid()] = {}
+            mac[sw1.get_dpid()][sw1.get_dpid()] = 0
+            for sw2 in self.tm.switches:
+                dis[sw1.get_dpid()][sw2.get_dpid()] = 1<<30
+        for src_sw in self.tm.switches:
+            dis[src_sw.get_dpid()][src_sw.get_dpid()] = 0
+            heap = [(dis[src_sw.get_dpid()][src_sw.get_dpid()], src_sw.get_dpid())]
+            heapify(heap)
+            while(len(heap) > 0):
+                top_element = heappop(heap)
+                cur_sw = top_element[1]
+                if not (cur_sw in self.tm.links.keys()):
+                    continue
+                for edge in self.tm.links[cur_sw]:
+                    dst_sw = edge[0].dpid
+                    port_no = edge[1].port_no
+                    edge_cost = edge[2]
+                    if dis[src_sw.get_dpid()][dst_sw] > dis[src_sw.get_dpid()][cur_sw] + edge_cost:
+                        dis[src_sw.get_dpid()][dst_sw] = dis[src_sw.get_dpid()][cur_sw] + edge_cost
+                        if(cur_sw == src_sw.get_dpid()):
+                            mac[src_sw.get_dpid()][dst_sw] = port_no
+                        else:
+                            mac[src_sw.get_dpid()][dst_sw] = mac[src_sw.get_dpid()][cur_sw]
+                        heappush(heap, (dis[src_sw.get_dpid()][dst_sw], dst_sw))
+        for sw1 in self.tm.switches:
+            for sw2 in self.tm.switches:
+               self.logger.warn("DIS %d-%d: %d PORT: %s", sw1.get_dpid(), sw2.get_dpid(), dis[sw1.get_dpid()][sw2.get_dpid()], mac[sw1.get_dpid()][sw2.get_dpid()])
