@@ -26,8 +26,11 @@ from ofctl_utils import OfCtl, VLANID_NONE, OfCtl_v1_3
 
 from topo_manager_example import TopoManager
 
+from heapq import *
+
 
 class ShortestPathSwitching(app_manager.RyuApp):
+
     OFP_VERSIONS = [ofproto_v1_0.OFP_VERSION]
 
     def __init__(self, *args, **kwargs):
@@ -71,21 +74,6 @@ class ShortestPathSwitching(app_manager.RyuApp):
 
 
         # TODO:  Update network topology and flow rules
-    def add_forwarding_rule(self, datapath, dl_dst, port):
-        ofctl = OfCtl.factory(datapath, self.logger)
-        actions = [datapath.ofproto_parser.OFPActionOutput(port)] 
-        
-        ofctl.set_flow(cookie=0, priority=0,
-            dl_type=ether_types.ETH_TYPE_IP,
-            dl_vlan=VLANID_NONE,
-            dl_dst=dl_dst,
-            actions=actions)
-
-    def delete_forwarding_rule(self, datapath, dl_dst):
-        ofctl = OfCtl.factory(datapath, self.logger)
-        match = datapath.ofproto_parser.OFPMatch(dl_dst=dl_dst)
-        ofctl.delete_flow(cookie=0, priority=0, match=match)
-
 
     @set_ev_cls(event.EventHostAdd)
     def handle_host_add(self, ev):
@@ -119,6 +107,7 @@ class ShortestPathSwitching(app_manager.RyuApp):
                          dst_port.dpid, dst_port.port_no, dst_port.hw_addr)
         self.tm.add_link(link)
         # TODO:  Update network topology and flow rules
+        # self.calc_dijkstra()
 
     @set_ev_cls(event.EventLinkDelete)
     def handle_link_delete(self, ev):
@@ -134,6 +123,7 @@ class ShortestPathSwitching(app_manager.RyuApp):
                           dst_port.dpid, dst_port.port_no, dst_port.hw_addr)
         self.tm.delete_link(link)
         # TODO:  Update network topology and flow rules
+        self.calc_dijkstra()
 
     @set_ev_cls(event.EventPortModify)
     def handle_port_modify(self, ev):
@@ -195,5 +185,53 @@ class ShortestPathSwitching(app_manager.RyuApp):
                                 src_port=ofctl.dp.ofproto.OFPP_CONTROLLER,
                                 output_port=in_port)
                 # Here is an example way to send an ARP packet using the ofctl utilities
-                
+    
+
+    def calc_dijkstra(self):
+        global dis, mac
+        dis = {}
+        mac = {}
+        for sw1 in self.tm.switches:
+            dis[sw1.get_dpid()] = {}
+            mac[sw1.get_dpid()] = {}
+            mac[sw1.get_dpid()][sw1.get_dpid()] = 0
+            for sw2 in self.tm.switches:
+                dis[sw1.get_dpid()][sw2.get_dpid()] = 1<<30
+        for src_sw in self.tm.switches:
+            dis[src_sw.get_dpid()][src_sw.get_dpid()] = 0
+            heap = [(dis[src_sw.get_dpid()][src_sw.get_dpid()], src_sw.get_dpid())]
+            heapify(heap)
+            while(len(heap) > 0):
+                top_element = heappop(heap)
+                cur_sw = top_element[1]
+                for edge in self.tm.links[cur_sw]:
+                    dst_sw = edge[0].dpid
+                    port_no = edge[1].port_no
+                    edge_cost = edge[2]
+                    if dis[src_sw.get_dpid()][dst_sw] > dis[src_sw.get_dpid()][cur_sw] + edge_cost:
+                        dis[src_sw.get_dpid()][dst_sw] = dis[src_sw.get_dpid()][cur_sw] + edge_cost
+                        if(cur_sw == src_sw.get_dpid()):
+                            mac[src_sw.get_dpid()][dst_sw] = port_no
+                        else:
+                            mac[src_sw.get_dpid()][dst_sw] = mac[src_sw.get_dpid()][cur_sw]
+                        heappush(heap, (dis[src_sw.get_dpid()][dst_sw], dst_sw))
+        for sw1 in self.tm.switches:
+            for sw2 in self.tm.switches:
+               self.logger.warn("DIS %d-%d: %d PORT: %s", sw1.get_dpid(), sw2.get_dpid(), dis[sw1.get_dpid()][sw2.get_dpid()], mac[sw1.get_dpid()][sw2.get_dpid()])
+
+
+    def add_forwarding_rule(self, datapath, dl_dst, port):
+        ofctl = OfCtl.factory(datapath, self.logger)
+        actions = [datapath.ofproto_parser.OFPActionOutput(port)] 
+        
+        ofctl.set_flow(cookie=0, priority=0,
+            dl_type=ether_types.ETH_TYPE_IP,
+            dl_vlan=VLANID_NONE,
+            dl_dst=dl_dst,
+            actions=actions)
+
+    def delete_forwarding_rule(self, datapath, dl_dst):
+        ofctl = OfCtl.factory(datapath, self.logger)
+        match = datapath.ofproto_parser.OFPMatch(dl_dst=dl_dst)
+        ofctl.delete_flow(cookie=0, priority=0, match=match)
 
