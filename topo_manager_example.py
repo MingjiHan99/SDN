@@ -102,21 +102,21 @@ class TopoManager():
         self.links = {}
 
     def add_link(self, link):
-        if link.src not in self.links.keys():
-            self.links[link.src.dpid] = [ (link, 1) ]
+        if link.src.dpid not in self.links.keys():
+            self.links[link.src.dpid] = [ (link.dst, link.src, 1) ]
         else:
-            self.links[link.src.dpid].append( (link, 1) )
+            self.links[link.src.dpid].append( (link.dst, link.src, 1) )
 
-        if link.dst not in self.links.keys():
-            self.links[link.dst.dpid] = [ (link, 1) ]
+        if link.dst.dpid not in self.links.keys():
+            self.links[link.dst.dpid] = [ (link.src, link.dst, 1) ]
         else:
-            self.links[link.dst.dpid].append(link)
+            self.links[link.dst.dpid].append ( (link.src, link.dst, 1) )
   
     def delete_link(self, link):
         if link.src.dpid in self.links.keys():
-            self.links[link.src.dpid].remove( (link, 1) )
-        if link.dst in self.links.keys():
-            self.links[link.dst.dpid].remove( (link, 1) )
+            self.links[link.src.dpid].remove( (link.dst, link.src, 1) )
+        if link.dst.dpid in self.links.keys():
+            self.links[link.dst.dpid].remove( (link.src, link.dst, 1) )
     
     def add_switch(self, sw):
         name = "switch_{}".format(sw.dp.id)
