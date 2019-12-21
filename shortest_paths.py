@@ -210,17 +210,19 @@ class ShortestPathSwitching(app_manager.RyuApp):
 
                 self.logger.warning("Received ARP REQUEST on switch%d/%d:  Who has %s?  Tell %s",
                                     dp.id, in_port, arp_msg.dst_ip, arp_msg.src_mac)
+                source_dp = dp.id
                 target = None
                 for k in self.tm.switches_dev.keys():
                     if target == None:
                         for v in self.tm.switches_dev[k]:   
                             if v.get_ips()[0] == arp_msg.dst_ip:
                                 target = v
+                                target_dp = k.get_dpid()
                                 break
                     else:
                         break
                 if target != None:
-
+                    
                 # TODO:  Generate a *REPLY* for this request based on your switch state
                     ofctl.send_arp(vlan_id=VLANID_NONE,
                                 arp_opcode=arp.ARP_REPLY,
@@ -232,7 +234,7 @@ class ShortestPathSwitching(app_manager.RyuApp):
                                 src_port=ofctl.dp.ofproto.OFPP_CONTROLLER,
                                 output_port=in_port)
                 # Here is an example way to send an ARP packet using the ofctl utilities
-
+                    self.display_shortest_path(source_dp, target_dp)
     def remove_all_rules(self):
         for switch in self.tm.switches:
             dp = switch.get_dp()
@@ -292,17 +294,32 @@ class ShortestPathSwitching(app_manager.RyuApp):
     def display_topo(self):
         self.logger.warning("================Topology================")
         for sw in self.tm.switches:
-            print("Switch {}".format(sw.get_dpid()))
-            print("Devices:")
+            self.logger.warning("Switch {}".format(sw.get_dpid()))
+            self.logger.warning("Devices:")
             if sw in self.tm.switches_dev.keys():
                 for h in self.tm.switches_dev[sw]:
-                    print("Device: IP: {} mac: {} on port {}".format(h.get_ips(), h.get_mac(), h.get_port().port_no))
-            print("Edges:")
+                   self.logger.warning("Device: IP: {} mac: {} on port {}".format(h.get_ips(), h.get_mac(), h.get_port().port_no))
+            self.logger.warning("Edges:")
             if sw.get_dpid() in self.tm.links.keys():
                 for v in self.tm.links[sw.get_dpid()]:
                     st, en = v[0], v[1]
                     self.logger.warn("switch{}/{} ({}) -> switch{}/{} ({})"
-                                        .format(st.dpid, st.port_no, st.hw_addr,
-                                                en.dpid, en.port_no, en.hw_addr))
+                                        .format(en.dpid, en.port_no, en.hw_addr,
+                                                st.dpid, st.port_no, st.hw_addr,
+                                                ))
        
+    def display_shortest_path(self, src_dpid, dst_dpid):
+        self.logger.warn("Path from switch {} to swtich {}".format(src_dpid, dst_dpid))
+        cur_dpid = src_dpid
+        self.logger.warn("{}".format(cur_dpid))
+        while cur_dpid != dst_dpid:
+            self.logger.warn('->')
+            nxt_port = mac[cur_dpid][dst_dpid]
+            for e in self.tm.links[cur_dpid]:
+                dst,src  = e[0], e[1]
+                if src.port_no == nxt_port:
+                    self.logger.warn("{}".format(dst.dpid))
+                    cur_dpid = dst.dpid
+                    break
             
+        self.logger.warn("Done")
