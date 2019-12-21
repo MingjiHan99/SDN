@@ -46,6 +46,7 @@ class ShortestPathSwitching(app_manager.RyuApp):
         
         # TODO:  Update network topology and flow rules
         self.tm.add_switch(switch)
+        self.display_topo()
         # in this project no new switched would be added
         # should be dealt with in the process of enabling ports
         # self.calc_dijkstra()
@@ -71,7 +72,7 @@ class ShortestPathSwitching(app_manager.RyuApp):
                     self.delete_forwarding_rule(key.get_dp(), v.get_mac())
         # Delete device
         self.tm.delete_switch(switch)
-
+        self.display_topo()
 
         # TODO:  Update network topology and flow rules
         # equivalent to disabling all ports of the switch
@@ -108,6 +109,7 @@ class ShortestPathSwitching(app_manager.RyuApp):
         
         # TODO:  Update network topology and flow rules
         self.tm.add_host(host)
+        self.display_topo()
         # for dp in self.tm.switches:
         #     if dp.get_dpid() == host.port.dpid:
         #         self.add_forwarding_rule(dp.get_dp(), host.mac, host.port.port_no)
@@ -127,6 +129,7 @@ class ShortestPathSwitching(app_manager.RyuApp):
                          src_port.dpid, src_port.port_no, src_port.hw_addr,
                          dst_port.dpid, dst_port.port_no, dst_port.hw_addr)
         self.tm.add_link(link)
+        self.display_topo()
         # TODO:  Update network topology and flow rules
         # compute the set of {(dp,dl_dst)} that is affected by adding this link.
         # for each (dp,dl_dst)
@@ -149,6 +152,7 @@ class ShortestPathSwitching(app_manager.RyuApp):
                           src_port.dpid, src_port.port_no, src_port.hw_addr,
                           dst_port.dpid, dst_port.port_no, dst_port.hw_addr)
         self.tm.delete_link(link)
+        self.display_topo()
         # TODO:  Update network topology and flow rules
         # compute the set of {(dp,dl_dst)} that is affected by deleting this link.
         # for each (dp,dl_dst)
@@ -285,3 +289,20 @@ class ShortestPathSwitching(app_manager.RyuApp):
         # for sw1 in self.tm.switches:
         #     for sw2 in self.tm.switches:
         #        self.logger.warn("DIS %d-%d: %d PORT: %s", sw1.get_dpid(), sw2.get_dpid(), dis[sw1.get_dpid()][sw2.get_dpid()], mac[sw1.get_dpid()][sw2.get_dpid()])
+    def display_topo(self):
+        self.logger.warning("================Topology================")
+        for sw in self.tm.switches:
+            print("Switch {}".format(sw.get_dpid()))
+            print("Devices:")
+            if sw in self.tm.switches_dev.keys():
+                for h in self.tm.switches_dev[sw]:
+                    print("Device: IP: {} mac: {} on port {}".format(h.get_ips(), h.get_mac(), h.get_port().port_no))
+            print("Edges:")
+            if sw.get_dpid() in self.tm.links.keys():
+                for v in self.tm.links[sw.get_dpid()]:
+                    st, en = v[0], v[1]
+                    self.logger.warn("switch{}/{} ({}) -> switch{}/{} ({})"
+                                        .format(st.dpid, st.port_no, st.hw_addr,
+                                                en.dpid, en.port_no, en.hw_addr))
+       
+            
