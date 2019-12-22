@@ -281,13 +281,16 @@ class ShortestPathSwitching(app_manager.RyuApp):
                     dst_sw = edge[0].dpid
                     port_no = edge[1].port_no
                     edge_cost = edge[2]
-                    if dis[src_sw.get_dpid()][dst_sw] > dis[src_sw.get_dpid()][cur_sw] + edge_cost:
-                        dis[src_sw.get_dpid()][dst_sw] = dis[src_sw.get_dpid()][cur_sw] + edge_cost
-                        if(cur_sw == src_sw.get_dpid()):
-                            mac[src_sw.get_dpid()][dst_sw] = port_no
-                        else:
-                            mac[src_sw.get_dpid()][dst_sw] = mac[src_sw.get_dpid()][cur_sw]
-                        heappush(heap, (dis[src_sw.get_dpid()][dst_sw], dst_sw))
+                    try:
+                        if dis[src_sw.get_dpid()][dst_sw] > dis[src_sw.get_dpid()][cur_sw] + edge_cost:
+                            dis[src_sw.get_dpid()][dst_sw] = dis[src_sw.get_dpid()][cur_sw] + edge_cost
+                            if(cur_sw == src_sw.get_dpid()):
+                                mac[src_sw.get_dpid()][dst_sw] = port_no
+                            else:
+                                mac[src_sw.get_dpid()][dst_sw] = mac[src_sw.get_dpid()][cur_sw]
+                            heappush(heap, (dis[src_sw.get_dpid()][dst_sw], dst_sw))
+                    except Exception as e:
+                        pass
         # for sw1 in self.tm.switches:
         #     for sw2 in self.tm.switches:
         #        self.logger.warn("DIS %d-%d: %d PORT: %s", sw1.get_dpid(), sw2.get_dpid(), dis[sw1.get_dpid()][sw2.get_dpid()], mac[sw1.get_dpid()][sw2.get_dpid()])

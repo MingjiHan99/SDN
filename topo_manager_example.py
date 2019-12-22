@@ -132,8 +132,10 @@ class TopoManager():
                 self.all_devices.remove(s)
                 if s in self.switches_dev.keys():
                     del self.switches_dev[s]
+        
+                if s.get_dpid() in self.links.keys():
+                    del self.links[s.get_dpid()]
                 break
-
     def add_host(self, h):
         name = "host_{}".format(h.mac)
         host = TMHost(name, h)
