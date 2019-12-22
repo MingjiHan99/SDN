@@ -1,13 +1,5 @@
-#!/usr/bin/env python3
-
-"""Shortest Path Switching template
-CSCI1680
-This example creates a simple controller application that watches for
-topology events.  You can use this framework to collect information
-about the network topology and install rules to implement shortest
-path switching.
-"""
 from heapq import *
+import os
 from ryu.base import app_manager
 from ryu.controller import ofp_event
 from ryu.controller.handler import CONFIG_DISPATCHER, MAIN_DISPATCHER
@@ -21,7 +13,6 @@ from ryu.lib.packet import packet, ether_types
 from ryu.lib.packet import ethernet, arp, icmp
 
 from ofctl_utils import OfCtl, VLANID_NONE, OfCtl_v1_3
-
 from topo_manager_example import TopoManager
 
 
@@ -32,6 +23,7 @@ class ShortestPathSwitching(app_manager.RyuApp):
         super(ShortestPathSwitching, self).__init__(*args, **kwargs)
 
         self.tm = TopoManager()
+
 
     @set_ev_cls(event.EventSwitchEnter)
     def handle_switch_add(self, ev):
@@ -205,6 +197,22 @@ class ShortestPathSwitching(app_manager.RyuApp):
 
         if eth.ethertype == ether_types.ETH_TYPE_ARP:
             arp_msg = pkt.get_protocols(arp.arp)[0]
+            if arp_msg.opcode == arp.ARP_REPLY:
+                self.logger.warning("This is an ARP reply received by switch%d/%d from %s!",dp.id,in_port,arp_msg.src_mac)
+                self.calc_spanning_tree()
+                # do forwarding on the spanning tree
+                for port in self.tm.node_port[dp.id]:
+                    if not port.port_no == in_port:
+                        self.logger.warning("Forward the reply to switch%d/%d!",dp.id,port.port_no)
+                        ofctl.send_arp(vlan_id=VLANID_NONE,
+                                arp_opcode=arp.ARP_REPLY,
+                                dst_mac='ff:ff:ff:ff:ff:ff',
+                                sender_mac=arp_msg.src_mac,
+                                sender_ip=arp_msg.src_ip,
+                                target_mac='ff:ff:ff:ff:ff:ff',
+                                target_ip='255.255.255.255',
+                                src_port=in_port,
+                                output_port=port.port_no)
 
             if arp_msg.opcode == arp.ARP_REQUEST:
 
@@ -224,6 +232,7 @@ class ShortestPathSwitching(app_manager.RyuApp):
                 if target != None:
                     
                 # TODO:  Generate a *REPLY* for this request based on your switch state
+                    self.logger.warning("Send ARP REPLY: %s has %s",target.get_mac(),arp_msg.dst_ip)
                     ofctl.send_arp(vlan_id=VLANID_NONE,
                                 arp_opcode=arp.ARP_REPLY,
                                 dst_mac=arp_msg.src_mac,
@@ -253,10 +262,13 @@ class ShortestPathSwitching(app_manager.RyuApp):
                 dp2 = switch2.get_dp()
                 if not dp1==dp2:
                     if switch2 in self.tm.switches_dev.keys():
-                        hosts = self.tm.switches_dev[switch2]
-                        for host in hosts:
-                            dl_dst = host.get_mac()
-                            self.add_forwarding_rule(dp1, dl_dst, mac[dp1.id][dp2.id])
+                        try:
+                            hosts = self.tm.switches_dev[switch2]
+                            for host in hosts:
+                                dl_dst = host.get_mac()
+                                self.add_forwarding_rule(dp1, dl_dst, mac[dp1.id][dp2.id])
+                        except KeyError:
+                            pass
 
     def calc_dijkstra(self):
         global dis, mac
@@ -326,3 +338,26 @@ class ShortestPathSwitching(app_manager.RyuApp):
                     break
             
         self.logger.warn("Done")
+
+    def calc_spanning_tree(self):
+        
+        visited = {}
+        for sw in self.tm.switches:
+            visited[sw.get_dpid()]=False
+
+        # bfs
+        l=[]
+        l.append(self.tm.switches[0].get_dpid())
+        visited[l[0]] = True
+        while l:
+            a = l[0]
+            for b in self.tm.links[a]: # b(link.dst, link.src, 1)
+                if not visited[b[0].dpid]:
+                    # self.logger.warning("add edge switch%d/%d <-> switch%d/%d!",a,b[1].port_no,b[0].dpid,b[0].port_no)
+                    visited[b[0].dpid] = True
+                    self.tm.node_port[a].add(b[1])
+                    self.tm.node_port[b[0].dpid].add(b[0])
+                    l.append(b[0].dpid)
+            l.remove(a)
+        
+                
