@@ -243,7 +243,7 @@ class ShortestPathSwitching(app_manager.RyuApp):
                                 src_port=ofctl.dp.ofproto.OFPP_CONTROLLER,
                                 output_port=in_port)
                 # Here is an example way to send an ARP packet using the ofctl utilities
-                    self.display_shortest_path(source_dp, target_dp)
+                    self.display_shortest_path(arp_msg.src_mac, source_dp, target_dp, target.get_mac())
     def remove_all_rules(self):
         for switch in self.tm.switches:
             dp = switch.get_dp()
@@ -322,24 +322,32 @@ class ShortestPathSwitching(app_manager.RyuApp):
                                         .format(en.dpid, en.port_no, en.hw_addr,
                                                 st.dpid, st.port_no, st.hw_addr,
                                                 ))
-       
-    def display_shortest_path(self, src_dpid, dst_dpid):
-        self.logger.warn("Path from switch {} to swtich {}".format(src_dpid, dst_dpid))
+        self.logger.warning("============End====Topology=============")
+    def display_shortest_path(self, src_mac, src_dpid, dst_dpid, dst_mac):
+        global dis
+        self.logger.warn("Path from host_{} to host_{}".format(src_mac, dst_mac))
+        self.logger.warn("Distance: {}".format(dis[src_dpid][dst_dpid]))
         cur_dpid = src_dpid
-        self.logger.warn("{}".format(cur_dpid))
+        out = "host_" + src_mac + " -> " + "switch_{}".format(cur_dpid)
+        # self.logger.warn("{}".format(cur_dpid))
         while cur_dpid != dst_dpid:
-            self.logger.warn('->')
+            # self.logger.warn('->')
+            out = out + " -> "
             nxt_port = mac[cur_dpid][dst_dpid]
             for e in self.tm.links[cur_dpid]:
                 dst,src  = e[0], e[1]
                 if src.port_no == nxt_port:
-                    self.logger.warn("{}".format(dst.dpid))
+                    # self.logger.warn("{}".format(dst.dpid))
+                    out = out + "switch_{}".format(dst.dpid)
                     cur_dpid = dst.dpid
                     break
-            
-        self.logger.warn("Done")
+        out = out + " -> host_" + dst_mac
+        # self.logger.warn("Done")
+        self.logger.warn(out)
 
     def calc_spanning_tree(self):
+
+        self.logger.warn("===========Spanning======Tree===========")
         
         visited = {}
         for sw in self.tm.switches:
@@ -353,11 +361,13 @@ class ShortestPathSwitching(app_manager.RyuApp):
             a = l[0]
             for b in self.tm.links[a]: # b(link.dst, link.src, 1)
                 if not visited[b[0].dpid]:
-                    # self.logger.warning("add edge switch%d/%d <-> switch%d/%d!",a,b[1].port_no,b[0].dpid,b[0].port_no)
+                    self.logger.warning("Edge: switch%d/%d <-> switch%d/%d!",a,b[1].port_no,b[0].dpid,b[0].port_no)
                     visited[b[0].dpid] = True
                     self.tm.node_port[a].add(b[1])
                     self.tm.node_port[b[0].dpid].add(b[0])
                     l.append(b[0].dpid)
             l.remove(a)
+
+        self.logger.warn("======End=====Spanning======Tree========")
         
                 

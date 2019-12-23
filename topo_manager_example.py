@@ -105,18 +105,18 @@ class TopoManager():
         else:
             self.links[link.src.dpid].append( (link.dst, link.src, 1) )
 
-        if link.dst.dpid not in self.links.keys():
-            self.links[link.dst.dpid] = [ (link.src, link.dst, 1) ]
-        else:
-            self.links[link.dst.dpid].append ( (link.src, link.dst, 1) )
+        # if link.dst.dpid not in self.links.keys():
+        #     self.links[link.dst.dpid] = [ (link.src, link.dst, 1) ]
+        # else:
+        #     self.links[link.dst.dpid].append ( (link.src, link.dst, 1) )
 
         
   
     def delete_link(self, link):
         if link.src.dpid in self.links.keys():
             self.links[link.src.dpid].remove( (link.dst, link.src, 1) )
-        if link.dst.dpid in self.links.keys():
-            self.links[link.dst.dpid].remove( (link.src, link.dst, 1) )
+        # if link.dst.dpid in self.links.keys():
+        #     self.links[link.dst.dpid].remove( (link.src, link.dst, 1) )
 
         
     
