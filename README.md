@@ -2,7 +2,8 @@
 
 #### Introduction
 
-This is the repository of SUSTech CS305 project.  
+This is the repository of SUSTech CS305 project. 
+We do not use ANY open source license.
 Please DO NOT use code in this repository in your project / assignment.  
 
 #### Contributor
