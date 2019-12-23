@@ -2,15 +2,15 @@
 
 #### Introduction
 
-This is the repository of SUSTech CS305 project. 
-We do not use ANY open source license.
+This is the repository of SUSTech CS305 project.  
+We do not use ANY open source license.  
 Please DO NOT use code in this repository in your project / assignment.  
 
 #### Contributor
 
-BoTian Xu
-Wenhao Zhang
-Mingji Han
+BoTian Xu  
+Wenhao Zhang  
+Mingji Han  
 
 #### Prerequsite
 
