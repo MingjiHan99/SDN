@@ -3,8 +3,7 @@
 #### Introduction
 
 This is the repository of SUSTech CS305 project.  
-We do not use ANY open source license.  
-Please DO NOT use code in this repository in your project / assignment.  
+Please DO NOT USE ANY code in this repository for your project / assignment.  
 
 #### Contributor
 
